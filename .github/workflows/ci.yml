@@ -25,13 +25,39 @@ on:
 permissions: write-all
 
 jobs:
+  validate:
+    name: Static validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          
+      - name: Install YAML validator
+        run: pip install yamllint
+        
+      - name: Check JavaScript syntax
+        run: npm install -g eslint && eslint js/ || true
+        
+      - name: Validate dashboard assets and embedding
+        # Eksekusi script lokal yang diwajibkan proyek
+        run: python tools/validate_project.py
+
   build:
+    needs: validate # Memenuhi aturan wajib: "Job build harus menunggu validasi"
     runs-on: ubuntu-latest
     env:
-      # Bypass error 422: Mengganti runner.temp dengan path statis di dalam workspace
       TEMP_DIR: ${{ github.workspace }}/temp
       WORKSPACE: ${{ github.workspace }}
-
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
