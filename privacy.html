@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#ffffff">
+<title>Kebijakan Privasi — NexaBuild</title>
+<style>
+:root{color-scheme:light;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#171717;background:#fff}body{max-width:760px;margin:0 auto;padding:28px 20px 64px;line-height:1.65}h1,h2{line-height:1.2}h1{font-size:30px}h2{font-size:19px;margin-top:30px}p,li{color:#383838}a{color:#174ea6}code{background:#f1f1f1;padding:2px 5px;border-radius:4px}
+</style>
+</head>
+<body>
+<h1>Kebijakan Privasi NexaBuild</h1>
+<p>Terakhir diperbarui: 13 November 2026</p>
+<p>NexaBuild adalah aplikasi web statis yang membantu membuat APK/AAB melalui akun GitHub milik pemakai. NexaBuild tidak mengoperasikan server build sendiri dan tidak menjalankan analitik iklan.</p>
+<h2>Token GitHub</h2>
+<ul>
+<li>Personal access token disimpan di <code>localStorage</code> pada browser/perangkat yang digunakan.</li>
+<li>Aplikasi mengirim permintaan API yang memerlukan token langsung ke <code>api.github.com</code>. Jika pemakai memilih repository sumber GitHub privat, secret <code>SRC_TOKEN</code> juga digunakan oleh GitHub Actions untuk melakukan clone melalui HTTPS ke <code>github.com</code>.</li>
+<li>Tidak ada token yang sengaja dikirim ke layanan font atau CDN. Namun, skrip pihak ketiga yang dimuat dari CDN berjalan dalam konteks halaman dan secara teknis dapat mengakses penyimpanan browser. Library JavaScript dipatok versinya; stylesheet Google Fonts dimuat dari Google Fonts. Gunakan deployment resmi yang sumbernya dapat diperiksa.</li>
+<li>Tombol “Putuskan” menghapus token dari penyimpanan lokal, tetapi tidak mencabut token di GitHub. Untuk mencabutnya, hapus token dari GitHub Settings → Developer settings → Personal access tokens.</li>
+</ul>
+<h2>Proyek dan hasil build</h2>
+<ul>
+<li>Build berjalan di GitHub Actions pada repository <code>apk-builder</code> milik pemakai.</li>
+<li>Repository build baru dibuat private. ZIP sumber yang diunggah menjadi commit dan penghapusan file setelah build tidak menghapus salinannya dari riwayat Git. Pertahankan repository tersebut private.</li>
+<li>Jika pemakai memilih repository sumber privat, akses sumber diberikan melalui secret <code>SRC_TOKEN</code> hanya pada langkah clone.</li>
+<li>Kompilasi sumber dan signing berjalan pada runner terpisah. Secret keystore dan token rilis hanya tersedia pada runner signing, bukan pada proses kompilasi sumber.</li>
+<li>APK/AAB, log build, ikon, konfigurasi, dan riwayat repository dikelola oleh GitHub sesuai pengaturan akun dan repository pemakai.</li>
+</ul>
+<h2>Layanan pihak ketiga</h2>
+<p>NexaBuild memuat dependensi versi tertentu dari jsDelivr untuk membaca ZIP, enkripsi secret, dan membuat QR, serta Google Fonts untuk tipografi. Browser dapat menghubungi domain tersebut saat fitur terkait digunakan.</p>
+<h2>Kontrol pemakai</h2>
+<p>Pemakai dapat memutuskan koneksi, mencabut token di GitHub, menghapus repository build, dan menghapus riwayat/artefak melalui GitHub. Menghapus data browser tidak menghapus data yang telah disimpan di GitHub.</p>
+<h2>Perubahan kebijakan</h2>
+<p>Kebijakan ini dapat diperbarui ketika perilaku aplikasi atau layanan yang digunakan berubah. Tanggal pembaruan ditampilkan di bagian atas halaman.</p>
+<p><a href="./index.html">Kembali ke NexaBuild</a></p>
+</body>
+</html>

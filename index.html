@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<meta name="description" content="Ubah proyek menjadi APK lewat GitHub Actions, langsung dari HP. Gratis dan berjalan di akun GitHub-mu sendiri.">
+<meta name="color-scheme" content="light">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="NexaBuild">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23fff'/%3E%3Cg stroke='%23000' stroke-width='2' stroke-linejoin='round'%3E%3Cpolygon points='16,3 28,10 16,17 4,10' fill='%23fff'/%3E%3Cpolygon points='4,10 16,17 16,30 4,23' fill='%23FFD600'/%3E%3Cpolygon points='28,10 16,17 16,30 28,23' fill='%23fff'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/app.css">
+<title>NexaBuild</title>
+</head>
+<body>
+<header id="bar">
+<button class="sq" id="mn" aria-label="Buka menu koneksi"><svg viewBox="0 0 24 24"><path d="M3 6h18M7 12h10M3 18h18"/></svg></button>
+<h1>NexaBuild</h1>
+<svg class="lg" id="logo" viewBox="0 0 32 32" aria-hidden="true"><polygon points="16,3 28,10 16,17 4,10" fill="#fff"/><polygon points="4,10 16,17 16,30 4,23" fill="#FFD600"/><polygon points="28,10 16,17 16,30 28,23" fill="#fff"/></svg>
+</header>
+<div id="pt">Tarik untuk muat ulang</div>
+
+<main>
+<section id="v-home"></section>
+<section id="v-build" hidden>
+<h1>Build</h1>
+<div class="qb" id="qb" hidden></div><div class="qb" id="sync" hidden></div>
+
+<div class="sc">
+<div class="sh"><b>Sumber proyek</b><span class="tag" id="ut" hidden></span></div>
+<select id="sr" hidden><option value="">-</option><option value="zip">zip</option><option value="url">url</option><option value="scratch">scratch</option></select>
+<div class="seg3" id="srcs"><button data-v="zip" aria-pressed="false">File</button><button data-v="url" aria-pressed="false">URL</button><button data-v="scratch" aria-pressed="false">Dari nol</button></div>
+<div id="szf" hidden><label class="dz" id="dz"><input id="zf" type="file" accept=".zip,.html,.htm"><span class="dzi"><svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M4 16v4h16v-4"/></svg></span><span class="dzt"><b id="dzt">Pilih ZIP atau HTML</b><em id="dzs">Maks 50 MB</em></span><span class="dzb" id="dzb">Pilih</span><button class="sq" id="dzx" hidden aria-label="Hapus file"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></label></div>
+<div id="uf" hidden><label>URL target<input id="su" type="url" placeholder="Situs web, repo Git, atau link ZIP" autocapitalize="off"></label><button class="btn w" id="anb" style="margin-bottom:10px">Baca URL</button></div>
+<div id="sbw" hidden><div class="g2c"><label id="rfw">Branch / tag<input id="rf" placeholder="default" autocapitalize="off"></label><label>Subfolder<input id="sb" placeholder="root" autocapitalize="off"></label></div></div>
+<div id="an"></div>
+<label id="kdw" hidden>Jenis proyek (manual)<select id="kd"><option value="">Pilih jenis</option><option value="web">Web (HTML/JS)</option><option value="flutter">Flutter</option><option value="capacitor">Capacitor</option><option value="rn">React Native / Expo</option><option value="gradle">Gradle Android</option></select></label>
+<div id="tplw" hidden><p style="margin:10px 0 6px">Template cepat</p><div class="tpl" id="tpl"></div></div>
+</div>
+
+<div class="sc">
+<div class="sh"><b>Identitas</b></div>
+<label><span class="lb">Nama aplikasi<span class="au" data-f="name"></span></span><input id="name" autocomplete="off"></label>
+<label><span class="lb">Package name<span class="au" data-f="pkg"></span></span><input id="pkg" placeholder="otomatis jika kosong" autocapitalize="off"><small class="fe" id="pe"></small></label>
+<div class="g2c"><label><span class="lb">versionName<span class="au" data-f="vn"></span></span><input id="vn" value="1.0.0"></label><label><span class="lb">versionCode<span class="au" data-f="vc"></span></span><input id="vc" type="number" value="1" inputmode="numeric"><small class="fe" id="ve"></small></label></div>
+</div>
+
+<details class="sc" open><summary class="sh"><b>Tampilan dan perilaku</b></summary>
+<label>URL WebView<input id="url" type="url" placeholder="kosong = layar teks" autocapitalize="off"></label>
+<div class="g2c"><label>Orientasi<select id="ori"><option value="unspecified">Bebas</option><option value="portrait">Portrait</option><option value="landscape">Landscape</option></select></label><label>Warna tema<input id="col" type="color" value="#ffd600"></label></div>
+<label class="sw"><span>Layar penuh</span><input type="checkbox" id="fs"></label>
+<div class="sw"><span>Warna status bar</span><input id="stc" type="color" value="#ffd600"><input type="checkbox" id="scb"></div>
+<label class="sw"><span>Tarik untuk muat ulang</span><input type="checkbox" id="pull"></label><label class="sw"><span>Halaman offline</span><input type="checkbox" id="of"></label><label class="sw"><span>Tautan luar dibuka di browser</span><input type="checkbox" id="extl"></label><label class="sw"><span>Izinkan zoom</span><input type="checkbox" id="zm"></label><label class="sw"><span>Layar tetap menyala</span><input type="checkbox" id="kp"></label><label class="sw"><span>Mode kiosk</span><input type="checkbox" id="ki"></label>
+<label class="sw"><span>Unggah berkas dan kamera di halaman</span><input type="checkbox" id="upl"></label>
+<label class="sw"><span>Unduhan berkas</span><input type="checkbox" id="dwn"></label>
+<label class="sw"><span>Cegah tangkapan layar</span><input type="checkbox" id="sec"></label>
+<label class="sw"><span>Tekan dua kali untuk keluar</span><input type="checkbox" id="dbl"></label>
+<label class="sw"><span>Minta izin saat aplikasi dibuka</span><input type="checkbox" id="rp" checked></label>
+<div class="sw"><span>Splash screen</span><input id="spc" type="color" value="#ffd600"><input type="checkbox" id="spl"></div>
+<label style="margin-top:10px">User agent<input id="ua" placeholder="bawaan" autocapitalize="off"></label>
+</details>
+
+<details class="sc"><summary class="sh"><b>Izin</b></summary>
+<label class="sw"><span>Internet</span><input class="pm" type="checkbox" value="internet" checked></label><label class="sw"><span>Kamera</span><input class="pm" type="checkbox" value="camera"></label><label class="sw"><span>Penyimpanan</span><input class="pm" type="checkbox" value="storage"></label><label class="sw"><span>Lokasi</span><input class="pm" type="checkbox" value="location"></label><label class="sw"><span>Notifikasi</span><input class="pm" type="checkbox" value="notifications"></label>
+</details>
+
+<details class="sc"><summary class="sh"><b>Build dan rilis</b></summary>
+<div class="g2c"><label>Format<select id="fmt"><option value="apk">APK</option><option value="aab">AAB</option><option value="both">APK + AAB</option></select></label><label>Varian<select id="var"><option value="release">Release</option><option value="debug">Debug</option></select></label></div>
+<div class="g2c"><label>minSdk (min 26)<input id="min" type="number" value="26" inputmode="numeric"></label><label>Nama file<input id="out" placeholder="otomatis" autocapitalize="off"></label></div>
+<label class="sw"><span>R8 minify dan shrink</span><input type="checkbox" id="mf"></label><label class="sw"><span>APK per ABI</span><input type="checkbox" id="abi"></label><label class="sw"><span>versionCode naik otomatis</span><input type="checkbox" id="ai" checked></label>
+<label class="sw" id="ovw"><span>Terapkan nama dan package ke proyek</span><input type="checkbox" id="ov" checked></label><p class="muted">versionCode dan versionName tetap diperbarui agar build baru dapat menggantikan APK terpasang.</p>
+<label style="margin-top:10px">Argumen Gradle<input id="ar" placeholder="--warning-mode all" autocapitalize="off"></label>
+<label>Flavors<input id="fl" placeholder="free,pro" autocapitalize="off"></label>
+<label>BuildConfig fields<textarea id="bc" rows="2" placeholder="API_URL=https://contoh.com" autocapitalize="off"></textarea></label>
+<label>Catatan rilis<input id="nt" placeholder="masuk ke GitHub Release"></label>
+<div class="g2c"><label>Preset<select id="ps"></select></label><label>&nbsp;<button class="btn w" id="psv">Simpan</button></label></div>
+<div class="g2c" style="margin-top:8px"><button class="btn w" id="ex">Ekspor JSON</button><label class="btn w" style="margin:0;cursor:pointer">Impor JSON<input id="im2" type="file" accept=".json" hidden></label></div>
+</details>
+
+<details class="sc"><summary class="sh"><b>Ikon</b></summary>
+<label>Ikon aplikasi (PNG)<input id="ic" type="file" accept="image/png"></label><p id="im"></p>
+<div class="sw"><span>Warna latar ikon</span><input id="icbgc" type="color" value="#ffd600"><input type="checkbox" id="icbgs"></div>
+</details>
+
+<details class="sc"><summary class="sh"><b>Penandatanganan</b></summary>
+<div class="sw" style="border-top:0"><span>Kunci tetap otomatis</span><span class="tag" id="fkt">?</span></div>
+<p>Agar APK baru bisa dipasang di atas versi lama, semua build harus memakai kunci yang sama. Aktifkan sekali. Kunci disimpan terenkripsi di repo build. Tanpa ini, setiap build memakai kunci baru dan versi lama harus dihapus dulu.</p>
+<button class="btn" id="fkb">Aktifkan kunci tetap</button><p id="fkm" style="margin-top:8px"></p>
+<p style="margin-top:12px"><b>Atau pakai keystore sendiri:</b></p>
+<label>File keystore<input id="ksf" type="file" accept=".jks,.keystore,.p12"></label>
+<div class="g2c"><label>Password<input id="ksp" type="password" autocomplete="off"></label><label>Alias<input id="kal" value="key" autocapitalize="off"></label></div>
+<button class="btn w" id="ksb">Simpan ke repo build</button><p id="ksm" style="margin-top:8px"></p>
+</details>
+
+<button class="btn" id="go">Build</button>
+<p id="bm" style="margin-top:8px"></p>
+
+<div class="term" id="term">
+<div class="th"><div class="pc"><b id="pct" data-v="0">0</b><span>%</span></div>
+<div class="tx"><span id="tt2" role="status" aria-live="polite">Menunggu build dimulai</span><em id="el">00:00</em></div>
+<button class="sq" id="mm" aria-label="Menu konsol" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M12 5h.01M12 12h.01M12 19h.01" stroke-width="4"/></svg></button></div>
+<div class="menu" id="mu" hidden>
+<button id="cp">Salin log</button><button id="dt">Unduh .txt</button><button id="as" aria-pressed="true">Auto-scroll</button>
+<div class="mf"><button data-f="" aria-pressed="true">Semua</button><button data-f="w" aria-pressed="false">Peringatan</button><button data-f="e" aria-pressed="false">Error</button></div>
+<input id="sq" placeholder="Cari log" aria-label="Cari log"><button id="cn">Batalkan build</button></div>
+<div class="pbar"><i id="pf"></i></div>
+<div id="hn"></div>
+<div id="tb"><div id="nl"></div><details id="lgd" hidden><summary>Log lengkap</summary><div id="gl"></div></details></div>
+</div>
+<div id="rs"></div>
+</section>
+<section id="v-hist" hidden>
+<h1>Riwayat</h1>
+<div class="row"><input id="hq" placeholder="Cari nama" aria-label="Cari"><select id="hf" aria-label="Filter status"><option value="">Semua</option><option value="success">Berhasil</option><option value="failure">Gagal</option><option value="cancelled">Dibatalkan</option></select></div>
+<div id="hl"></div>
+</section>
+</main>
+
+<nav id="nav">
+<button data-t="0" aria-label="Beranda"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></svg><span>Beranda</span></button>
+<button data-t="1" aria-label="Build"><svg viewBox="0 0 24 24"><path d="M5 3l14 9-14 9z"/></svg><span>Build</span></button>
+<button data-t="2" aria-label="Riwayat"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Riwayat</span></button>
+</nav>
+
+<div id="sc"></div>
+<aside id="dr" aria-label="Koneksi GitHub" aria-hidden="true">
+<div class="dh"><h2>Koneksi GitHub</h2><button class="sq" id="dx" aria-label="Tutup"><svg viewBox="0 0 24 24"><path d="M5 5l14 14M19 5L5 19"/></svg></button></div>
+<div class="card" id="ds"></div>
+<div class="card" id="rpw" hidden><b>Repo build masih public</b><p>ZIP sumber dan berkas ikon yang diunggah bisa terlihat publik, termasuk riwayat commit. Jadikan repo private sebelum memproses proyek pribadi.</p><button class="btn" id="priv">Jadikan repo private</button></div>
+<label>Personal access token<div class="pw"><input id="tk" type="password" autocomplete="off" autocapitalize="off"><button class="sq" id="te" aria-label="Tampilkan token"><svg viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button></div></label>
+<div class="row"><label>Username template<input id="tu" value="buildernexa" autocapitalize="off" autocomplete="off"></label><label>Nama repo<input id="tr" value="apk-template" autocapitalize="off" autocomplete="off"></label></div>
+<div class="stack"><button class="btn" id="lb">Hubungkan</button>
+<div class="row" style="margin:0"><button class="btn w" id="tt">Tes koneksi</button><button class="btn w" id="lo">Putuskan</button></div></div>
+<button class="btn w" id="ib" hidden>Instal aplikasi</button>
+<p id="lm"></p>
+<details><summary>Tentang dan privasi</summary><p style="margin-top:6px">NexaBuild <span id="ver"></span>. Token GitHub hanya disimpan di perangkat ini dan hanya dikirim ke api.github.com. Build berjalan di akun GitHub-mu sendiri, jadi menit Actions dan hasil build adalah milikmu. Tombol Putuskan menghapus token dari perangkat. <a href="privacy.html" target="_blank" rel="noopener">Kebijakan privasi</a>.</p></details>
+<details><summary>Cara membuat token</summary>
+<ol><li>GitHub, Settings, Developer settings, Personal access tokens (classic).</li><li>Generate token baru, centang <b>repo</b> dan <b>workflow</b>.</li><li>Salin token lalu tempel di atas.</li></ol></details>
+</aside>
+<div id="dp" hidden></div>
+<div id="ts" role="status" aria-live="polite"></div>
+
+
+<script src="js/core.js"></script>
+<script src="js/home.js"></script>
+<script src="js/history.js"></script>
+<script src="js/console.js"></script>
+<script src="js/analyze.js"></script>
+<script src="js/results.js"></script>
+<script src="js/build.js"></script>
+<script src="js/extras.js"></script>
+<script src="js/template.js"></script>
+<script src="js/boot.js"></script>
+</body>
+</html>
