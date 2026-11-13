@@ -1,0 +1,255 @@
+name: build
+run-name: NexaBuild #${{ github.run_number }}
+on:
+  workflow_dispatch:
+    inputs:
+      config:
+        description: Konfigurasi build NexaBuild (JSON)
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nexabuild-${{ github.ref }}
+  cancel-in-progress: false
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  PIP_BREAK_SYSTEM_PACKAGES: "1"
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+jobs:
+  validate:
+    name: Validate build request
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: none
+    steps:
+      - name: Validate configuration payload
+        env:
+          CFG: ${{ inputs.config }}
+        run: |
+          python3 - <<'PYCFG'
+          import json, os, re, sys
+          raw = os.environ.get("CFG", "")
+          if not raw or len(raw) > 60000:
+              raise SystemExit("Konfigurasi kosong atau melebihi batas 60 KB.")
+          try:
+              cfg = json.loads(raw)
+          except Exception as exc:
+              raise SystemExit("JSON konfigurasi tidak valid: %s" % exc)
+          if not isinstance(cfg, dict):
+              raise SystemExit("Konfigurasi harus berupa objek JSON.")
+          required = ("build_id", "name", "pkg", "fmt", "var", "sr")
+          missing = [key for key in required if not cfg.get(key)]
+          if missing:
+              raise SystemExit("Konfigurasi kehilangan field: " + ", ".join(missing))
+          if cfg["fmt"] not in ("apk", "aab", "both"):
+              raise SystemExit("Format output tidak didukung.")
+          if cfg["var"] not in ("release", "debug"):
+              raise SystemExit("Varian build tidak didukung.")
+          if cfg["sr"] not in ("scratch", "repo", "zip", "ziplink"):
+              raise SystemExit("Sumber proyek tidak didukung.")
+          if not re.fullmatch(r"[A-Za-z0-9._-]{8,80}", str(cfg["build_id"])):
+              raise SystemExit("build_id tidak valid.")
+          if len(str(cfg["name"])) > 80 or len(str(cfg["pkg"])) > 255:
+              raise SystemExit("Nama atau package ID terlalu panjang.")
+          print("Konfigurasi valid:", cfg["sr"], cfg["fmt"], cfg["var"])
+          PYCFG
+
+  build:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    outputs:
+      kind: ${{ steps.prep.outputs.kind }}
+      work_b64: ${{ steps.prep.outputs.work_b64 }}
+    env:
+      CFG: ${{ inputs.config }}
+      RUN: ${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install image processor
+        run: python3 -m pip install --break-system-packages --disable-pip-version-check Pillow==11.1.0
+      - name: Prepare source
+        id: prep
+        env:
+          SRC_TOKEN: ${{ secrets.SRC_TOKEN }}
+        run: python3 tools/generate.py prep
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Install Android SDK 36
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-36" "build-tools;36.0.0"
+      - name: Setup Node
+        if: steps.prep.outputs.kind == 'web' || steps.prep.outputs.kind == 'capacitor' || steps.prep.outputs.kind == 'rn'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            **/package-lock.json
+            **/npm-shrinkwrap.json
+      - name: Setup Flutter
+        if: steps.prep.outputs.kind == 'flutter'
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.11.1
+      - name: Generate project
+        if: steps.prep.outputs.kind == 'generated' || steps.prep.outputs.kind == 'web'
+        run: python3 tools/generate.py gen
+      - name: Build
+        run: bash .build.sh
+      - name: Stage unsigned build outputs
+        env:
+          BUILD_KIND: ${{ steps.prep.outputs.kind }}
+          BUILD_WORK_B64: ${{ steps.prep.outputs.work_b64 }}
+        run: |
+          python3 - <<'PY'
+          import base64, os, re, shutil
+          from pathlib import Path
+          kind = os.environ["BUILD_KIND"]
+          work = base64.b64decode(os.environ["BUILD_WORK_B64"]).decode("utf-8")
+          base = Path("build_app") if kind in ("generated", "web") else Path(work)
+          raw = Path("raw")
+          if raw.exists(): shutil.rmtree(raw)
+          raw.mkdir(parents=True)
+          files = [p for p in base.rglob("*") if p.is_file() and not p.is_symlink()
+                   and p.suffix.lower() in (".apk", ".aab") and "androidTest" not in str(p)]
+          files.sort()
+          if not files: raise SystemExit("Tidak ada APK/AAB di output Gradle.")
+          for i, src in enumerate(files):
+              name = re.sub(r"[^A-Za-z0-9_.-]", "_", src.name)
+              shutil.copy2(src, raw / ("%03d-%s" % (i, name)))
+          for src, name in ((Path(".nexa-package"), "nexa-package.txt"),
+                            (Path("build_app/.gen"), "nexa-gen.json")):
+              if src.is_file(): shutil.copy2(src, raw / name)
+          print("Staged", len(files), "unsigned APK/AAB files")
+          PY
+      - name: Upload unsigned build outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: raw-build
+          path: raw/*
+          if-no-files-found: error
+          retention-days: 1
+
+  sign:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      actions: read
+    env:
+      CFG: ${{ inputs.config }}
+      RUN: ${{ github.run_number }}
+      BUILD_KIND: ${{ needs.build.outputs.kind }}
+      RAW_DIR: raw
+      TRUSTED_GIT_DIR: ${{ github.workspace }}/.git
+      BUNDLETOOL_JAR: ${{ runner.temp }}/bundletool-all-1.18.3.jar
+      KS_B64: ${{ secrets.KEYSTORE_B64 }}
+      KS_PASS: ${{ secrets.KS_PASS }}
+      KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+      KS_SEED: ${{ secrets.KS_SEED }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          persist-credentials: false
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Install Android SDK 36
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-36" "build-tools;36.0.0"
+      - name: Install bundletool 1.18.3
+        if: ${{ fromJSON(inputs.config).fmt == 'aab' || fromJSON(inputs.config).fmt == 'both' }}
+        run: curl -fsSL --retry 3 --retry-delay 2 "https://github.com/google/bundletool/releases/download/1.18.3/bundletool-all-1.18.3.jar" -o "$BUNDLETOOL_JAR"
+      - name: Download unsigned build outputs
+        uses: actions/download-artifact@v4
+        with:
+          name: raw-build
+          path: raw
+      - name: Sign and validate outputs
+        id: collect
+        run: python3 tools/generate.py collect
+      - name: Upload signed artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: output
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 30
+      - name: Write build summary
+        if: always()
+        env:
+          CFG: ${{ inputs.config }}
+        run: |
+          {
+            echo "## NexaBuild signing and validation"
+            echo "- Build run: #${GITHUB_RUN_NUMBER}"
+            echo "- Result: ${{ job.status }}"
+            echo "- Output format: $(python3 -c 'import json,os; print(json.loads(os.environ["CFG"]).get("fmt","unknown"))')"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Cleanup temporary source ZIP
+        if: always()
+        run: |
+          rm -f .nexa-package
+          ZIP=$(python3 -c 'import json,os;print(json.loads(os.environ["CFG"]).get("zip",""))')
+          if [ -n "$ZIP" ] && [ -f "$ZIP" ]; then
+            git config user.name nexabuild
+            git config user.email nexabuild@users.noreply.github.com
+            git rm -q -f "$ZIP"
+            git commit -q -m "Hapus ZIP sementara"
+            git -c 'credential.helper=!f() { echo username=x-access-token; echo password=$GH_TOKEN; }; f' push -q origin "HEAD:${GITHUB_REF_NAME}"
+          fi
+      - name: Release
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ steps.collect.outputs.tag }}"
+          gh release create "$TAG" dist/* --title "$TAG" --notes-file build_app/.notes || gh release upload "$TAG" dist/* --clobber
+
+  cleanup_failed_build:
+    needs: [build, sign]
+    if: always() && needs.build.result != 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      CFG: ${{ inputs.config }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          persist-credentials: false
+      - name: Cleanup ZIP after failed compilation
+        run: |
+          ZIP=$(python3 -c 'import json,os;print(json.loads(os.environ["CFG"]).get("zip",""))')
+          if [ -n "$ZIP" ] && [ -f "$ZIP" ]; then
+            git config user.name nexabuild
+            git config user.email nexabuild@users.noreply.github.com
+            git rm -q -f "$ZIP"
+            git commit -q -m "Hapus ZIP setelah build gagal"
+            git -c 'credential.helper=!f() { echo username=x-access-token; echo password=$GH_TOKEN; }; f' push -q origin "HEAD:${GITHUB_REF_NAME}"
+          fi
